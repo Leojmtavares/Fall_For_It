@@ -21,6 +21,7 @@ TILE_SIZE = 50
 # Other
 MAX_WORLD_MAP_GRID_ROWS = 18
 MAX_ROWS_WITHOUT_PLAT = 5
+MAX_PLAYER_HP = 3
 
 ### CLASSES ###
 
@@ -29,21 +30,28 @@ MAX_ROWS_WITHOUT_PLAT = 5
 # Class: Player
 class Player():
 
-    def __init__(self,x,y):
+    def __init__(self, starting_X, starting_Y):
         
         playerImgIdle = pygame.image.load('img/Player/Player_Idle.png')
         self.image = pygame.transform.scale(playerImgIdle,(40,30))
         self.rect = self.image.get_rect()    
-        self.rect.x = x
-        self.rect.y = y
+        self.rect.x = starting_X
+        self.starting_X = starting_X
+        self.rect.y = starting_Y
+        self.starting_Y = starting_Y
         self.width = self.image.get_width()
         self.height = self.image.get_height()
+        
         self.vel_y = 0 
         self.jumped = True
         self.scroll = 0
         self.clock_sum = 0
         self.old_time = 1
         self.old_frames = 1
+        
+        self.playerHP = MAX_PLAYER_HP
+        self.playerTookDamage = False
+        self.alive = True
 
     def update(self):
 
@@ -65,23 +73,23 @@ class Player():
         #Animations
         if key[pygame.K_RIGHT] == False and key[pygame.K_LEFT] == False:
             playerImgIdle = pygame.image.load('img/Player/Player_Idle.png')
-            self.image = pygame.transform.scale(playerImgIdle,(40,30)) 
+            self.image = pygame.transform.scale(playerImgIdle, (40, 30)) 
             
         if key[pygame.K_RIGHT] == True and key[pygame.K_LEFT] == False:
             playerImgRight = pygame.image.load('img/Player/Player_Right.png')
-            self.image = pygame.transform.scale(playerImgRight,(40,30))
+            self.image = pygame.transform.scale(playerImgRight, (40, 30))
             
         if key[pygame.K_RIGHT] == False and key[pygame.K_LEFT] == True:
             playerImgLeft = pygame.image.load('img/Player/Player_Left.png')
-            self.image = pygame.transform.scale(playerImgLeft,(40,30))
+            self.image = pygame.transform.scale(playerImgLeft, (40, 30))
             
         if self.vel_y < 0:
             playerImgUp = pygame.image.load('img/Player/Player_Up.png')
-            self.image = pygame.transform.scale(playerImgUp,(30,40))
+            self.image = pygame.transform.scale(playerImgUp, (30, 40))
             
         if self.vel_y > 0:
             playerImgDown = pygame.image.load('img/Player/Player_Down.png')
-            self.image = pygame.transform.scale(playerImgDown,(30,40))
+            self.image = pygame.transform.scale(playerImgDown, (30, 40))
 
         # Gravity   
         self.vel_y += 1
@@ -91,27 +99,41 @@ class Player():
             
         new_y += self.vel_y
 
+        self.standingOnTile = False
+        self.sideTouchingDamage = False
         # Collisions
         for tile in world.tile_list:
             
-            # X
-            if tile[1].colliderect(self.rect.x + new_x, self.rect.y, self.width, self.height):      
-                new_x = 0
-                
             # Y
             if tile[1].colliderect(self.rect.x, self.rect.y + new_y, self.width, self.height):    
-                self.jumped = False 
-                 
-                # Below ground
+                self.jumped = False
+                
+                if(tile[2] == 3):
+                    self.damage_player()
+                
+                if(tile[2] == 2):
+                    self.standingOnTile = True
+                
+                # Below ground corrections
                 if self.vel_y < 0:
                     new_y = tile[1].bottom - self.rect.top
                     self.vel_y = 0
                     
-                # Above ground
+                # Above ground corrections
                 elif self.vel_y >= 0:
                     new_y = tile[1].top - self.rect.bottom
                     self.vel_y = 0
+                
+            # X
+            if tile[1].colliderect(self.rect.x + new_x, self.rect.y, self.width, self.height):   
+                new_x = 0
+
+                if tile[2] == 3:
+                    self.sideTouchingDamage = True     
                     
+        # If Player is standing on tile and side-touches spike, it gets damaged
+        if self.standingOnTile and self.sideTouchingDamage:
+            self.damage_player()       
         
         # Update Player Position
         self.rect.x += new_x
@@ -125,6 +147,37 @@ class Player():
             self.rect.y = SCREEN_START_SCROLL_HEIGHT
             
         game_screen.blit(self.image, self.rect)
+
+        
+    def damage_player(self):
+        
+        # Possible animations... etc
+        self.playerHP -= 1
+        self.playerTookDamage = True
+        
+        if self.playerHP <= 0:
+            self.kill_player()
+
+
+    def kill_player(self):
+        
+        # Possible animations... etc
+        self.alive = False
+        pass
+    
+    def reset_player_pos(self):
+        
+        self.rect.x = self.starting_X
+        self.rect.y = self.starting_Y
+        
+    def did_player_take_damage(self):
+        
+        if self.playerTookDamage:
+            self.playerTookDamage = False
+            return True
+        
+        return False
+        
 
 # Class: World Map       
 class WorldMap():
@@ -164,9 +217,7 @@ class WorldMap():
             ]
         
         # World Map Grid Initial Definition
-        self.world_grid = []
-        for _ in range(MAX_WORLD_MAP_GRID_ROWS):
-            self.world_grid.append(self.no_plat_row)
+        self.reset_map()
 
         # Normal Block Definitions
         self.grass_block_img = pygame.image.load('img/map_block_grass.png')
@@ -182,7 +233,6 @@ class WorldMap():
         self.spikes_img = pygame.image.load('img/Spikes.png')
         self.spikes_surface = pygame.transform.scale(self.spikes_img,(TILE_SIZE, TILE_SIZE+30))
         self.spikes_rect = self.spikes_surface.get_rect()
-
         
         # Other Variables
         self.gridbox_counter = 0
@@ -227,22 +277,22 @@ class WorldMap():
                         self.block_rect = self.block_surface.get_rect()
                         self.block_rect.x = col_count * TILE_SIZE
                         self.block_rect.y = row_count * TILE_SIZE - self.map_scroll
-                        tile = (self.block_surface,self.block_rect)
-                        self.tile_list.append(tile)
+                        tile_tpl = (self.block_surface, self.block_rect, tile)
+                        self.tile_list.append(tile_tpl)
 
                     if tile == 2:
                         self.grass_block_rect = self.grass_block_surface.get_rect()
                         self.grass_block_rect.x = col_count * TILE_SIZE
                         self.grass_block_rect.y = row_count * TILE_SIZE - self.map_scroll
-                        tile = (self.grass_block_surface,self.grass_block_rect)
-                        self.tile_list.append(tile)
+                        tile_tpl = (self.grass_block_surface, self.grass_block_rect, tile)
+                        self.tile_list.append(tile_tpl)
                     
                     if tile == 3:
                         self.spikes_rect = self.spikes_surface.get_rect()
                         self.spikes_rect.x = col_count * TILE_SIZE
                         self.spikes_rect.y = row_count * TILE_SIZE - (self.map_scroll + 30)
-                        tile = (self.spikes_surface,self.spikes_rect)
-                        self.tile_list.append(tile)
+                        tile_tpl = (self.spikes_surface, self.spikes_rect, tile)
+                        self.tile_list.append(tile_tpl)
 
                     col_count += 1
 
@@ -250,6 +300,13 @@ class WorldMap():
 
         for tile in self.tile_list:
             game_screen.blit(tile[0],tile[1])
+    
+    
+    def reset_map(self):
+        self.world_grid = []
+        for _ in range(MAX_WORLD_MAP_GRID_ROWS):
+            self.world_grid.append(self.no_plat_row)
+    
 
 class Spikes(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -298,6 +355,15 @@ while game_running:
     player.update()
   
     pygame.display.update()
+    
+    if player.did_player_take_damage():
+        world.reset_map()
+        player.reset_player_pos()
+        
+    if player.alive == False:
+        print("DEADGE")
+        # reset world or something
+        pass
 
     for event in pygame.event.get():
         # Close Window
