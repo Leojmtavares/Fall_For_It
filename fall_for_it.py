@@ -45,6 +45,7 @@ class Player():
         self.vel_y = 0 
         self.jumped = True
         self.scroll = 0
+        self.scrollsum = 0
         self.clock_sum = 0
         self.old_time = 1
         self.old_frames = 1
@@ -52,7 +53,8 @@ class Player():
         self.playerHP = MAX_PLAYER_HP
         self.playerTookDamage = False
         self.alive = True
-
+     
+      
     def update(self):
 
         #Player movement
@@ -63,10 +65,10 @@ class Player():
         if key [pygame.K_UP] and self.jumped == False and self.vel_y == 0:
             self.vel_y = -20
             self.jumped = True
-            
+         
         if key[pygame.K_LEFT]:
             new_x -= 5 
-            
+        
         if key[pygame.K_RIGHT]:
             new_x += 5 
 
@@ -145,13 +147,14 @@ class Player():
         if self.rect.y > SCREEN_START_SCROLL_HEIGHT:
             self.scroll = self.rect.y - SCREEN_START_SCROLL_HEIGHT
             self.rect.y = SCREEN_START_SCROLL_HEIGHT
-            
+
+        self.scrollsum += self.scroll
+
         game_screen.blit(self.image, self.rect)
 
         
     def damage_player(self):
         
-        # Possible animations... etc
         self.playerHP -= 1
         self.playerTookDamage = True
         
@@ -161,9 +164,9 @@ class Player():
 
     def kill_player(self):
         
-        # Possible animations... etc
         self.alive = False
-        pass
+        self.scrollsum = 0
+     
     
     def reset_player_pos(self):
         
@@ -306,19 +309,42 @@ class WorldMap():
         self.world_grid = []
         for _ in range(MAX_WORLD_MAP_GRID_ROWS):
             self.world_grid.append(self.no_plat_row)
+
+
+# Class: User Interface
+class UserInterface():
+
+    def __init__(self, curr_player, curr_world):
+
+        self.curr_player = curr_player
+        self.curr_world = curr_world
+
+        life_img_tmp = pygame.image.load('img/Life.png')
+        self.life_img = pygame.transform.scale(life_img_tmp,(30,30))
+
+        self.score_font = pygame.font.Font('PixelEmulator.ttf', 20)
+
+
+    # Display player HP
+    def display_hp(self, curr_hp):
+        
+        for hp in range(curr_hp):
+            game_screen.blit(self.life_img, (500+35*hp, 50))
+
+
+    def draw_ui(self):
+
+        self.display_hp(player.playerHP)
+        self.draw_score()
     
 
-class Spikes(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        pygame.sprite.Sprite.__init__(self)
-        spike_img = pygame.image.load('img/Spike.png')
-        self.image = pygame.transform.scale(spike_img,(40,30))
-        self.rect = self.image.get_rect()    
-        self.rect.x = x
-        self.rect.y = y
-     
- 
- 
+    def draw_score(self):
+
+        score_text = self.score_font.render(str(player.scrollsum), True, (255,255,255))
+        center_score_x = int(self.score_font.size(str(player.scrollsum))[0]/2)
+        game_screen.blit(score_text, (550 - center_score_x , 100))
+
+
 ### MAIN CODE ###       
       
       
@@ -340,6 +366,8 @@ pygame.display.set_icon(icon)
 # Initalize Game Objects
 world = WorldMap()
 player = Player(PLAYER_STARTING_POS_X, PLAYER_STARTING_POS_Y)
+ui = UserInterface(player, world)
+
 world.update_player(player)
 
 # Game Loop
@@ -352,8 +380,9 @@ while game_running:
     clock.tick(FPS)
 
     world.draw()
-    player.update()
-  
+    player.update()   
+    ui.draw_ui()
+
     pygame.display.update()
     
     if player.did_player_take_damage():
