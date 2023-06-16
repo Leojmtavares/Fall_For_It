@@ -1,5 +1,6 @@
 import pygame
 import random
+import time
 
 
 
@@ -30,11 +31,12 @@ MAX_PLAYER_HP = 3
 # Class: Player
 class Player():
 
-    def __init__(self, starting_X, starting_Y):
+    def __init__(self, world, starting_X, starting_Y):
         
         playerImgIdle = pygame.image.load('img/Player/Player_Idle.png')
         self.image = pygame.transform.scale(playerImgIdle,(40,30))
-        self.rect = self.image.get_rect()    
+        self.rect = self.image.get_rect() 
+        self.world = world   
         self.rect.x = starting_X
         self.starting_X = starting_X
         self.rect.y = starting_Y
@@ -104,7 +106,7 @@ class Player():
         self.standingOnTile = False
         self.sideTouchingDamage = False
         # Collisions
-        for tile in world.tile_list:
+        for tile in self.world.tile_list:
             
             # Y
             if tile[1].colliderect(self.rect.x, self.rect.y + new_y, self.width, self.height):    
@@ -180,7 +182,12 @@ class Player():
             return True
         
         return False
-        
+
+    def full_player_reset(self):
+        self.reset_player_pos()
+        self.alive = True
+        self.scrollsum = 0
+        self.playerHP = MAX_PLAYER_HP
 
 # Class: World Map       
 class WorldMap():
@@ -310,14 +317,13 @@ class WorldMap():
         for _ in range(MAX_WORLD_MAP_GRID_ROWS):
             self.world_grid.append(self.no_plat_row)
 
-
 # Class: User Interface
 class UserInterface():
 
-    def __init__(self, curr_player, curr_world):
+    def __init__(self, player, world):
 
-        self.curr_player = curr_player
-        self.curr_world = curr_world
+        self.player = player
+        self.world = world
 
         life_img_tmp = pygame.image.load('img/Life.png')
         self.life_img = pygame.transform.scale(life_img_tmp,(30,30))
@@ -334,20 +340,116 @@ class UserInterface():
 
     def draw_ui(self):
 
-        self.display_hp(player.playerHP)
+        self.display_hp(self.player.playerHP)
         self.draw_score()
     
 
     def draw_score(self):
 
-        score_text = self.score_font.render(str(player.scrollsum), True, (255,255,255))
-        center_score_x = int(self.score_font.size(str(player.scrollsum))[0]/2)
+        score_text = self.score_font.render(str(self.player.scrollsum), True, (255,255,255))
+        center_score_x = int(self.score_font.size(str(self.player.scrollsum))[0]/2)
         game_screen.blit(score_text, (550 - center_score_x , 100))
+
+#Class: Window Selector
+class WindowSelector():
+
+    def __init__(self):
+        self.curr_menu = 0
+        self.quit_order = False
+
+        # Initalize Game Objects
+        self.world = WorldMap()
+        self.player = Player(self.world, PLAYER_STARTING_POS_X, PLAYER_STARTING_POS_Y)
+        self.ui = UserInterface(self.player, self.world)
+
+        self.world.update_player(self.player)
+
+
+
+    def main_menu(self):
+        main_menu_running = True
+        while main_menu_running:
+
+            # Game Background Color
+            game_screen.fill((0,156,242))
+            
+            clock.tick(FPS)
+
+            pygame.display.update()
+
+            for event in pygame.event.get():
+                # Close Window
+                if event.type == pygame.QUIT:
+                    main_menu_running = False
+                    self.quit_order = True
+                
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        main_menu_running = False
+                        self.curr_menu = 1
+    
+    
+    def play_game(self):
+        # Game Loop
+        play_game_running = True
+        while play_game_running:
+
+            # Game Background Color
+            game_screen.fill((0,156,242))
+            
+            clock.tick(FPS)
+
+            self.world.draw()
+            self.player.update()   
+            self.ui.draw_ui()
+            
+            if self.player.did_player_take_damage():
+                self.world.reset_map()
+                self.player.reset_player_pos()
+
+            if self.player.alive == False:
+                self.world.reset_map()
+                self.player.full_player_reset()
+                self.curr_menu = 3
+                play_game_running = False
+                continue
+                
+            pygame.display.update()
+
+            for event in pygame.event.get():
+                # Close Window
+                if event.type == pygame.QUIT:
+                    play_game_running = False
+                    self.quit_order = True
+
+                        
+    def game_over(self):
+        
+        game_over_font = pygame.font.Font('PixelEmulator.ttf', 100)
+        game_text = game_over_font.render('Game', True, (255,255,255))
+        over_text = game_over_font.render('Over!', True, (255,255,255))
+
+        game_screen.fill((0,156,242))
+        game_screen.blit(game_text, (150, 200))
+        game_screen.blit(over_text, (150, 350)) 
+
+        pygame.display.update()
+        
+        start_gameover_time = time.time()
+        while time.time() - start_gameover_time < 3.0:
+             
+            for event in pygame.event.get():
+                # Close Window
+                if event.type == pygame.QUIT:
+                    self.quit_order = True
+                    break
+        
+        self.curr_menu = 0
 
 
 ### MAIN CODE ###       
       
-      
+            
         
 # Intialize Pygame
 pygame.init()
@@ -363,45 +465,24 @@ pygame.display.set_caption("Fall for it")
 icon = pygame.image.load('img/Fall_for_it_Game_Icon.png')
 pygame.display.set_icon(icon)
 
-# Initalize Game Objects
-world = WorldMap()
-player = Player(PLAYER_STARTING_POS_X, PLAYER_STARTING_POS_Y)
-ui = UserInterface(player, world)
 
-world.update_player(player)
+window_selector = WindowSelector()
 
-# Game Loop
-game_running = True
-while game_running:
+window_running = True
+while window_running:
 
-    # Game Background Color
-    game_screen.fill((0,156,242))
-    
-    clock.tick(FPS)
+    # Window Selection 
+    if window_selector.curr_menu == 0:
+        window_selector.main_menu()   
 
-    world.draw()
-    player.update()   
-    ui.draw_ui()
+    elif window_selector.curr_menu == 1:
+        window_selector.play_game()
 
-    pygame.display.update()
-    
-    if player.did_player_take_damage():
-        world.reset_map()
-        player.reset_player_pos()
-        
-    if player.alive == False:
-        print("DEADGE")
-        # reset world or something
-        pass
+    elif window_selector.curr_menu == 3:
+        window_selector.game_over()
 
-    for event in pygame.event.get():
-        # Close Window
-        if event.type == pygame.QUIT:
-            game_running = False
-
-
-              
-               
-    
-    
+    # Close Window
+    if window_selector.quit_order:
+        window_running = False
+     
     
