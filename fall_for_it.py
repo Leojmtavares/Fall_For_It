@@ -698,6 +698,7 @@ pygame.display.set_caption("Fall for it")
 icon = pygame.image.load('img/Fall_for_it_Game_Icon.png')
 pygame.display.set_icon(icon)
 
+# Play music
 mixer.init()
 mixer.music.load("background_music.mp3")
 mixer.music.set_volume(0.04)
