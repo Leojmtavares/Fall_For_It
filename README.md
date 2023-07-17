@@ -57,8 +57,10 @@ A classe *WindowSelector* é responsável por orientar os diferentes menus/estad
 Para a execução do jogo, é inicializado o *Pygame*, o relógio do jogo, é criado o ecrã de jogo com as dimensões pedidas no enunciado, algumas alterações e implementações na janela de jogo, música é executada e é criado o *loop “while window_running”* que é responsável por indicar a janela/função que está a correr de momento. 
 
 ##### Referências  
-Neste projeto todas as referências que usufruí foi de tutoriais que encontrei no Youtube: 
+<p>Neste projeto todas as referências que usufruí foi de tutoriais que encontrei no Youtube:</p>
+
 Tutorial geral de como fazer um jogo 2D em *Python*: 
+
 - https://www.youtube.com/watch?v=Ongc4EVqRjo&ab_channel=CodingWithRuss 
 
 - https://www.youtube.com/watch?v=5FMPAt0n3Nc&list=RDCMUCPrRY0S-VzekrJK7I7F4-Mg&start_radio=1&t=653s&ab_channel=CodingWithRuss 
@@ -66,6 +68,7 @@ Tutorial geral de como fazer um jogo 2D em *Python*:
 - https://www.youtube.com/watch?v=FfWpgLFMI7w&ab_channel=freeCodeCamp.org
 
 Tutorial de como fazer botões e janelas: 
+
 - https://www.youtube.com/watch?v=GMBqjxcKogA&t=230s&ab_channel=BaralTech 
 
 - https://www.youtube.com/watch?v=2iyx8_elcYg&t=812s&ab_channel=CodingWithRuss 
